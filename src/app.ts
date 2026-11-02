@@ -33,6 +33,7 @@ app.use(express.json({ limit: '1mb' }));
 app.use(express.urlencoded({ extended: true, limit: '1mb' }));
 
 // Routes
+app.get('/', (_req, res) => res.redirect('/api/health'));
 app.use('/api', rejectForeignOrigins, apiRouter);
 
 // 404 for unmatched routes, then centralized error handling (must be last).

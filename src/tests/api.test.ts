@@ -125,6 +125,12 @@ describe('health', () => {
     assert.equal(status, 200);
     assert.equal(body.database.status, 'connected');
   });
+
+  it('sends the base URL to the health check', async () => {
+    const { status, body } = await call('GET', '/');
+    assert.equal(status, 200);
+    assert.equal(body.database.status, 'connected');
+  });
 });
 
 describe('authentication', () => {
