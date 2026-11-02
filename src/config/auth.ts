@@ -13,7 +13,6 @@ async function createAuth(db: Db) {
     import('better-auth'),
     import('better-auth/adapters/mongodb'),
   ]);
-  const isProduction = env.NODE_ENV === 'production';
 
   return betterAuth({
     appName: 'StudioSpace',
@@ -38,11 +37,6 @@ async function createAuth(db: Db) {
             },
           }
         : undefined,
-    // The client and API live on different sites in production, so the session
-    // cookie must be sent cross-site there. On localhost they are same-site.
-    advanced: isProduction
-      ? { defaultCookieAttributes: { sameSite: 'none', secure: true } }
-      : undefined,
   });
 }
 

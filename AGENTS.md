@@ -6,7 +6,8 @@ Express 5 + TypeScript (CommonJS) + MongoDB native driver + Better Auth. Keep ne
 
 - **Tests never touch `.env`'s database**: they set `MONGODB_URI` to `mongodb-memory-server` before importing the app. Keep it that way; `.env` points at a live Atlas cluster.
 - **Double-booking**: `booking_slots` has a unique index on (studioId, date, slot). Bookings claim their 30-minute slots there first, so overlaps fail atomically without transactions. Releasing a booking (declined/cancelled) must delete its slots.
-- **CSRF**: production cookies are `SameSite=None`, so `rejectForeignOrigins` guards every write, including `/api/auth`. Don't rely on Better Auth's own origin check in tests: it is disabled when `NODE_ENV=test`.
+- **Same-origin in production**: the client rewrites `/api` to this server, so browsers only ever talk to the client's domain. Set `BETTER_AUTH_URL` to the client's URL there, or session cookies and Google sign-in break.
+- **CSRF**: `rejectForeignOrigins` guards every write, including `/api/auth`. Don't rely on Better Auth's own origin check in tests: it is disabled when `NODE_ENV=test`.
 - **Authorization** is ownership-based (no roles): every account can both book and host. Check `ownerId`/`hostId`/`guestId` in services.
 - **Prices** are computed from the listing in `booking.service.ts`, never read from the request.
 - **Better Auth** owns the `user`, `session`, `account`, and `verification` collections. Change users through its API; extra profile fields live in `profiles`.
