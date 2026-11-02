@@ -1,10 +1,18 @@
-import { betterAuth } from 'better-auth';
-import { mongodbAdapter } from 'better-auth/adapters/mongodb';
+import type { IncomingHttpHeaders, IncomingMessage, ServerResponse } from 'node:http';
 import type { Db } from 'mongodb';
 import env from './env';
 import { getDatabase } from './database';
 
-function createAuth(db: Db) {
+/**
+ * Better Auth is ESM-only and this project is CommonJS. Vercel's runtime rejects
+ * `require()` of an ES module, so it must only be loaded through `import()` here:
+ * a static import elsewhere compiles to `require()` and crashes the deployment.
+ */
+async function createAuth(db: Db) {
+  const [{ betterAuth }, { mongodbAdapter }] = await Promise.all([
+    import('better-auth'),
+    import('better-auth/adapters/mongodb'),
+  ]);
   const isProduction = env.NODE_ENV === 'production';
 
   return betterAuth({
@@ -47,4 +55,16 @@ let instance: ReturnType<typeof createAuth> | null = null;
 export function getAuth(): ReturnType<typeof createAuth> {
   if (!instance) instance = createAuth(getDatabase());
   return instance;
+}
+
+/** Converts Node request headers into the `Headers` that Better Auth's API expects. */
+export async function toAuthHeaders(headers: IncomingHttpHeaders): Promise<Headers> {
+  const { fromNodeHeaders } = await import('better-auth/node');
+  return fromNodeHeaders(headers);
+}
+
+/** Lets Better Auth answer a request to its `/api/auth` routes. */
+export async function handleAuthRequest(req: IncomingMessage, res: ServerResponse): Promise<void> {
+  const [{ toNodeHandler }, auth] = await Promise.all([import('better-auth/node'), getAuth()]);
+  await toNodeHandler(auth)(req, res);
 }

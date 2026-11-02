@@ -10,6 +10,7 @@ Express 5 + TypeScript (CommonJS) + MongoDB native driver + Better Auth. Keep ne
 - **Authorization** is ownership-based (no roles): every account can both book and host. Check `ownerId`/`hostId`/`guestId` in services.
 - **Prices** are computed from the listing in `booking.service.ts`, never read from the request.
 - **Better Auth** owns the `user`, `session`, `account`, and `verification` collections. Change users through its API; extra profile fields live in `profiles`.
+- **Better Auth is ESM-only**: load it only through `import()` in `src/config/auth.ts`. A static import elsewhere works locally but crashes on Vercel with `ERR_REQUIRE_ESM`. To reproduce it, build and run `node --no-require-module dist/server.js`.
 - **Responses**: success bodies are the bare resource (the client expects this); errors use the central shape.
 
 ## Commands

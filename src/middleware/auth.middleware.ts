@@ -1,12 +1,12 @@
 import type { NextFunction, Request, Response } from 'express';
-import { fromNodeHeaders } from 'better-auth/node';
-import { getAuth } from '../config/auth';
+import { getAuth, toAuthHeaders } from '../config/auth';
 import { ApiError } from '../utils/api-error';
 import type { AuthUser } from '../types/domain';
 
 /** Rejects unauthenticated requests with 401 and exposes the user to controllers. */
 export async function requireAuth(req: Request, res: Response, next: NextFunction): Promise<void> {
-  const session = await getAuth().api.getSession({ headers: fromNodeHeaders(req.headers) });
+  const auth = await getAuth();
+  const session = await auth.api.getSession({ headers: await toAuthHeaders(req.headers) });
   if (!session) {
     throw ApiError.unauthorized('Please sign in to continue.');
   }

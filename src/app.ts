@@ -1,7 +1,6 @@
-import { toNodeHandler } from 'better-auth/node';
 import cors from 'cors';
 import express from 'express';
-import { getAuth } from './config/auth';
+import { handleAuthRequest } from './config/auth';
 import env from './config/env';
 import apiRouter from './routes';
 import { ensureDatabase } from './middleware/database.middleware';
@@ -27,9 +26,7 @@ app.use(
 );
 
 // Better Auth reads the raw request body, so it must be mounted before the parsers.
-app.all('/api/auth/{*splat}', rejectForeignOrigins, ensureDatabase, (req, res) =>
-  toNodeHandler(getAuth())(req, res),
-);
+app.all('/api/auth/{*splat}', rejectForeignOrigins, ensureDatabase, handleAuthRequest);
 
 // Body parsing
 app.use(express.json({ limit: '1mb' }));

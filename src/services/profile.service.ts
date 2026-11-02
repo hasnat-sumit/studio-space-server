@@ -1,6 +1,5 @@
 import type { IncomingHttpHeaders } from 'node:http';
-import { fromNodeHeaders } from 'better-auth/node';
-import { getAuth } from '../config/auth';
+import { getAuth, toAuthHeaders } from '../config/auth';
 import { getDatabase } from '../config/database';
 import {
   COLLECTIONS,
@@ -62,7 +61,8 @@ export async function updateProfile(
 
   // Identity belongs to Better Auth, so names change through its own API.
   if (name !== undefined && name !== user.name) {
-    await getAuth().api.updateUser({ headers: fromNodeHeaders(headers), body: { name } });
+    const auth = await getAuth();
+    await auth.api.updateUser({ headers: await toAuthHeaders(headers), body: { name } });
   }
 
   const profile = await profiles().findOneAndUpdate(
