@@ -19,6 +19,17 @@ function createAuth(db: Db) {
       minPasswordLength: 8,
       autoSignIn: true,
     },
+    // Optional: without credentials the provider stays off and email sign-in still works.
+    socialProviders:
+      env.GOOGLE_CLIENT_ID && env.GOOGLE_CLIENT_SECRET
+        ? {
+            google: {
+              clientId: env.GOOGLE_CLIENT_ID,
+              clientSecret: env.GOOGLE_CLIENT_SECRET,
+              prompt: 'select_account',
+            },
+          }
+        : undefined,
     // The client and API live on different sites in production, so the session
     // cookie must be sent cross-site there. On localhost they are same-site.
     advanced: isProduction

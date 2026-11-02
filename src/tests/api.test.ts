@@ -87,6 +87,8 @@ before(async () => {
   process.env.DB_NAME = 'studiospace_test';
   process.env.CLIENT_URL = CLIENT_ORIGIN;
   process.env.BETTER_AUTH_SECRET = 'test-only-secret-test-only-secret-1234';
+  process.env.GOOGLE_CLIENT_ID = 'test-google-client-id';
+  process.env.GOOGLE_CLIENT_SECRET = 'test-google-client-secret';
   process.env.LOG_LEVEL = 'error';
 
   const database = await import('../config/database.js');
@@ -166,6 +168,18 @@ describe('authentication', () => {
       body: { name: 'Short', email: 'short@example.com', password: 'abc' },
     });
     assert.equal(short.status, 400);
+  });
+
+  it('starts Google sign-in with the API callback', async () => {
+    const { status, body } = await call('POST', '/api/auth/sign-in/social', {
+      body: { provider: 'google', callbackURL: `${CLIENT_ORIGIN}/dashboard` },
+    });
+    assert.equal(status, 200, JSON.stringify(body));
+
+    const url = new URL(body.url);
+    assert.equal(url.hostname, 'accounts.google.com');
+    assert.equal(url.searchParams.get('client_id'), 'test-google-client-id');
+    assert.match(url.searchParams.get('redirect_uri') ?? '', /\/api\/auth\/callback\/google$/);
   });
 
   it('never returns the password hash', async () => {

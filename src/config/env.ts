@@ -51,6 +51,8 @@ const env = {
   CLIENT_URL: readString('CLIENT_URL', 'http://localhost:3000'),
   BETTER_AUTH_SECRET: readString('BETTER_AUTH_SECRET'),
   BETTER_AUTH_URL: readString('BETTER_AUTH_URL', 'http://localhost:5000'),
+  GOOGLE_CLIENT_ID: readString('GOOGLE_CLIENT_ID'),
+  GOOGLE_CLIENT_SECRET: readString('GOOGLE_CLIENT_SECRET'),
   LOG_LEVEL: readString('LOG_LEVEL', 'info'),
 } as const;
 
