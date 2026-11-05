@@ -38,6 +38,7 @@ describe('seed script', () => {
     const reviews = await db.collection('reviews').countDocuments();
     assert.ok(studios > 0);
     assert.ok(reviews > 0);
+    assert.equal(await db.collection('user').countDocuments({ email: 'examiner@studiospace.dev' }), 1);
 
     // A host's edit must survive a re-run.
     await db.collection('studios').updateOne({ slug: 'noir-photo-studio' }, { $set: { hourlyRate: 1 } });
@@ -45,6 +46,7 @@ describe('seed script', () => {
 
     assert.equal(await db.collection('studios').countDocuments(), studios);
     assert.equal(await db.collection('reviews').countDocuments(), reviews);
+    assert.equal(await db.collection('user').countDocuments({ email: 'examiner@studiospace.dev' }), 1);
     const edited = await db.collection('studios').findOne({ slug: 'noir-photo-studio' });
     assert.equal(edited?.hourlyRate, 1);
   });

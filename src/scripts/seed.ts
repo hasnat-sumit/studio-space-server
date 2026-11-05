@@ -1,4 +1,5 @@
 import { ObjectId } from 'mongodb';
+import { getAuth } from '../config/auth';
 import { closeDatabase, connectDatabase } from '../config/database';
 import { ensureIndexes } from '../config/indexes';
 import env from '../config/env';
@@ -42,11 +43,18 @@ interface SeedReview {
   createdAt: string;
 }
 
+/** The account examiners sign in with. It's public on purpose: it's in the client README. */
+const DEMO_ACCOUNT = {
+  name: 'Examiner Demo',
+  email: 'examiner@studiospace.dev',
+  password: 'Examiner123',
+};
+
 /**
  * Loads the demo catalogue into the database named by `DB_NAME`.
  *
- * Additive and idempotent: studios are matched by slug and reviews by a stable
- * author id, and only ever inserted. Nothing is updated or deleted, so re-running
+ * Additive and idempotent: studios are matched by slug, reviews by a stable author
+ * id, and the demo account by email, and only ever inserted. Nothing is updated or deleted, so re-running
  * it leaves existing listings, edits, and bookings untouched.
  */
 async function seed(): Promise<void> {
@@ -117,7 +125,15 @@ async function seed(): Promise<void> {
     reviewsAdded += result.upsertedCount;
   }
 
-  logger.info(`Seed complete: ${studiosAdded} studios and ${reviewsAdded} reviews added.`);
+  const demoExists = await db.collection('user').findOne({ email: DEMO_ACCOUNT.email });
+  if (!demoExists) {
+    const auth = await getAuth();
+    await auth.api.signUpEmail({ body: DEMO_ACCOUNT });
+  }
+
+  logger.info(
+    `Seed complete: ${studiosAdded} studios and ${reviewsAdded} reviews added, demo account ${demoExists ? 'already there' : 'created'}.`,
+  );
 }
 
 seed()
