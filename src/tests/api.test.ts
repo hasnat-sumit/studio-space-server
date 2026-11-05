@@ -52,11 +52,17 @@ async function call<T = any>(
 
 async function signUp(name: string, email: string): Promise<string> {
   const result = await call('POST', '/api/auth/sign-up/email', {
-    body: { name, email, password: 'correct-horse-1' },
+    body: { name, email, password: 'Correct-horse-1' },
   });
   assert.equal(result.status, 200, JSON.stringify(result.body));
-  assert.ok(result.cookie, 'sign-up should set a session cookie');
-  return result.cookie;
+  assert.equal(result.cookie, null, 'sign-up should not start a session');
+
+  const signIn = await call('POST', '/api/auth/sign-in/email', {
+    body: { email, password: 'Correct-horse-1' },
+  });
+  assert.equal(signIn.status, 200, JSON.stringify(signIn.body));
+  assert.ok(signIn.cookie, 'sign-in should set a session cookie');
+  return signIn.cookie;
 }
 
 function studioInput(overrides: Record<string, unknown> = {}) {
@@ -148,6 +154,40 @@ describe('authentication', () => {
     assert.equal(after.status, 401);
   });
 
+  it('enforces the password rules on sign-up and change', async () => {
+    for (const password of ['Abc12', 'alllowercase1', 'ALLUPPERCASE1']) {
+      const result = await call('POST', '/api/auth/sign-up/email', {
+        body: { name: 'Rule Breaker', email: 'rules@example.com', password },
+      });
+      assert.equal(result.status, 400, password);
+    }
+
+    const accepted = await call('POST', '/api/auth/sign-up/email', {
+      body: { name: 'Rule Follower', email: 'rules@example.com', password: 'Abcdef' },
+    });
+    assert.equal(accepted.status, 200);
+
+    const cookie = await signUp('Rule Changer', 'rule-change@example.com');
+    const weak = await call('POST', '/api/auth/change-password', {
+      cookie,
+      body: { currentPassword: 'Correct-horse-1', newPassword: 'nouppercase1' },
+    });
+    assert.equal(weak.status, 400);
+  });
+
+  it('stores the photo URL given at sign-up', async () => {
+    const result = await call('POST', '/api/auth/sign-up/email', {
+      body: {
+        name: 'Pia Photo',
+        email: 'photo@example.com',
+        password: 'Correct-horse-1',
+        image: 'https://example.com/pia.jpg',
+      },
+    });
+    assert.equal(result.status, 200);
+    assert.equal(result.body.user.image, 'https://example.com/pia.jpg');
+  });
+
   it('signs in with the right password only', async () => {
     await signUp('Pat Password', 'password@example.com');
 
@@ -157,7 +197,7 @@ describe('authentication', () => {
     assert.equal(wrong.status, 401);
 
     const right = await call('POST', '/api/auth/sign-in/email', {
-      body: { email: 'password@example.com', password: 'correct-horse-1' },
+      body: { email: 'password@example.com', password: 'Correct-horse-1' },
     });
     assert.equal(right.status, 200);
     assert.ok(right.cookie);
@@ -166,7 +206,7 @@ describe('authentication', () => {
   it('rejects duplicate emails and short passwords', async () => {
     await signUp('First User', 'dupe@example.com');
     const dupe = await call('POST', '/api/auth/sign-up/email', {
-      body: { name: 'Second', email: 'dupe@example.com', password: 'correct-horse-1' },
+      body: { name: 'Second', email: 'dupe@example.com', password: 'Correct-horse-1' },
     });
     assert.notEqual(dupe.status, 200);
 
@@ -199,7 +239,7 @@ describe('authentication', () => {
     const result = await call('POST', '/api/auth/change-password', {
       origin: 'https://evil.example',
       cookie,
-      body: { currentPassword: 'correct-horse-1', newPassword: 'attacker-chosen-1' },
+      body: { currentPassword: 'Correct-horse-1', newPassword: 'attacker-chosen-1' },
     });
     assert.equal(result.status, 403);
   });
@@ -662,17 +702,17 @@ describe('profile', () => {
     const cookie = await signUp('Cass Change', 'change@example.com');
     const changed = await call('POST', '/api/auth/change-password', {
       cookie,
-      body: { currentPassword: 'correct-horse-1', newPassword: 'new-horse-battery-2' },
+      body: { currentPassword: 'Correct-horse-1', newPassword: 'New-horse-battery-2' },
     });
     assert.equal(changed.status, 200);
 
     const old = await call('POST', '/api/auth/sign-in/email', {
-      body: { email: 'change@example.com', password: 'correct-horse-1' },
+      body: { email: 'change@example.com', password: 'Correct-horse-1' },
     });
     assert.equal(old.status, 401);
 
     const fresh = await call('POST', '/api/auth/sign-in/email', {
-      body: { email: 'change@example.com', password: 'new-horse-battery-2' },
+      body: { email: 'change@example.com', password: 'New-horse-battery-2' },
     });
     assert.equal(fresh.status, 200);
   });

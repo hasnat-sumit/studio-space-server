@@ -2,6 +2,13 @@ import type { IncomingHttpHeaders, IncomingMessage, ServerResponse } from 'node:
 import type { Db } from 'mongodb';
 import env from './env';
 import { getDatabase } from './database';
+import { MIN_PASSWORD_LENGTH, passwordProblem } from '../validators/password';
+
+/** Better Auth routes that set a password, and the body field that carries it. */
+const PASSWORD_FIELDS: Record<string, string> = {
+  '/sign-up/email': 'password',
+  '/change-password': 'newPassword',
+};
 
 /**
  * Better Auth is ESM-only and this project is CommonJS. Vercel's runtime rejects
@@ -9,10 +16,12 @@ import { getDatabase } from './database';
  * a static import elsewhere compiles to `require()` and crashes the deployment.
  */
 async function createAuth(db: Db) {
-  const [{ betterAuth }, { mongodbAdapter }] = await Promise.all([
-    import('better-auth'),
-    import('better-auth/adapters/mongodb'),
-  ]);
+  const [{ betterAuth }, { mongodbAdapter }, { APIError, createAuthMiddleware }] =
+    await Promise.all([
+      import('better-auth'),
+      import('better-auth/adapters/mongodb'),
+      import('better-auth/api'),
+    ]);
 
   return betterAuth({
     appName: 'StudioSpace',
@@ -23,8 +32,32 @@ async function createAuth(db: Db) {
     database: mongodbAdapter(db),
     emailAndPassword: {
       enabled: true,
-      minPasswordLength: 8,
-      autoSignIn: true,
+      minPasswordLength: MIN_PASSWORD_LENGTH,
+      // New accounts go to the login page rather than straight into a session.
+      autoSignIn: false,
+    },
+    hooks: {
+      before: createAuthMiddleware(async (ctx) => {
+        const field = PASSWORD_FIELDS[ctx.path];
+        if (!field) return;
+        const problem = passwordProblem((ctx.body as Record<string, unknown> | undefined)?.[field]);
+        if (problem) throw new APIError('BAD_REQUEST', { message: problem });
+
+        // With autoSignIn off, Better Auth answers a duplicate sign-up with a fake
+        // success, which would tell the user to log in to an account they don't own.
+        if (ctx.path === '/sign-up/email') {
+          const email = (ctx.body as { email?: unknown }).email;
+          const existing =
+            typeof email === 'string'
+              ? await ctx.context.internalAdapter.findUserByEmail(email.toLowerCase())
+              : null;
+          if (existing) {
+            throw new APIError('UNPROCESSABLE_ENTITY', {
+              message: 'An account with this email already exists. Log in instead.',
+            });
+          }
+        }
+      }),
     },
     // Optional: without credentials the provider stays off and email sign-in still works.
     socialProviders:
