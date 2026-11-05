@@ -24,7 +24,7 @@ function studios() {
 }
 
 export function toStudioView(doc: StudioDocument): StudioView {
-  const { _id, ownerId: _ownerId, updatedAt: _updatedAt, createdAt, ...rest } = doc;
+  const { _id, ownerId: _ownerId, ownerEmail: _ownerEmail, updatedAt: _updatedAt, createdAt, ...rest } = doc;
   const cover = doc.gallery[0];
   return {
     ...rest,
@@ -119,6 +119,7 @@ export async function createStudio(user: AuthUser, input: CreateStudioInput): Pr
   const doc: StudioDocument = {
     _id: new ObjectId(),
     ownerId: user.id,
+    ownerEmail: user.email,
     slug: base,
     ...input,
     host: {

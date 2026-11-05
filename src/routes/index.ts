@@ -1,6 +1,8 @@
 import { Router } from 'express';
 import { getMe, getSummary, patchMe } from '../controllers/profile.controller';
+import { postNewsletter } from '../controllers/newsletter.controller';
 import { removeReview } from '../controllers/review.controller';
+import { postImage } from '../controllers/upload.controller';
 import { requireAuth } from '../middleware/auth.middleware';
 import { ensureDatabase } from '../middleware/database.middleware';
 import bookingRouter from './booking.routes';
@@ -24,5 +26,7 @@ apiRouter.delete('/reviews/:id', requireAuth, removeReview);
 apiRouter.get('/users/me', requireAuth, getMe);
 apiRouter.patch('/users/me', requireAuth, patchMe);
 apiRouter.get('/dashboard/summary', requireAuth, getSummary);
+apiRouter.post('/uploads/image', requireAuth, postImage);
+apiRouter.post('/newsletter', postNewsletter);
 
 export default apiRouter;

@@ -53,6 +53,8 @@ export interface StudioDocument {
   _id: ObjectId;
   /** Better Auth user id of the listing's owner; every write is checked against it. */
   ownerId: string;
+  /** Private. Absent on seed listings, whose hosts aren't real accounts. */
+  ownerEmail?: string;
   slug: string;
   title: string;
   category: StudioCategory;
@@ -72,7 +74,7 @@ export interface StudioDocument {
 }
 
 /** Matches the client's `Studio` type. */
-export type StudioView = Omit<StudioDocument, '_id' | 'ownerId' | 'createdAt' | 'updatedAt'> & {
+export type StudioView = Omit<StudioDocument, '_id' | 'ownerId' | 'ownerEmail' | 'createdAt' | 'updatedAt'> & {
   id: string;
   image: string;
   imageAlt: string;
@@ -203,4 +205,5 @@ export const COLLECTIONS = {
   bookingSlots: 'booking_slots',
   reviews: 'reviews',
   profiles: 'profiles',
+  newsletterSubscribers: 'newsletter_subscribers',
 } as const;

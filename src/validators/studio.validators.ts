@@ -2,14 +2,14 @@ import { z } from 'zod';
 import { STUDIO_AMENITIES, STUDIO_CATEGORIES } from '../types/domain';
 
 /** `next/image` on the client only serves whitelisted hosts (see its next.config.ts). */
-const ALLOWED_IMAGE_HOSTS = new Set(['images.unsplash.com']);
+const ALLOWED_IMAGE_HOSTS = new Set(['images.unsplash.com', 'i.ibb.co']);
 
 const imageUrl = z.url().refine(
   (value) => {
     const url = new URL(value);
     return url.protocol === 'https:' && ALLOWED_IMAGE_HOSTS.has(url.hostname);
   },
-  { message: 'Image URLs must be https://images.unsplash.com links.' },
+  { message: 'Image URLs must be https://images.unsplash.com or https://i.ibb.co links.' },
 );
 
 const studioFields = {

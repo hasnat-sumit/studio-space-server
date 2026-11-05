@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 import type { Server } from 'node:http';
 import type { AddressInfo } from 'node:net';
-import { after, before, describe, it } from 'node:test';
+import { after, before, describe, it, type TestContext } from 'node:test';
 import type { Express } from 'express';
 import { MongoMemoryServer } from 'mongodb-memory-server';
 import { ObjectId, type Db } from 'mongodb';
@@ -103,6 +103,7 @@ before(async () => {
   process.env.BETTER_AUTH_SECRET = 'test-only-secret-test-only-secret-1234';
   process.env.GOOGLE_CLIENT_ID = 'test-google-client-id';
   process.env.GOOGLE_CLIENT_SECRET = 'test-google-client-secret';
+  process.env.IMGBB_API_KEY = 'test-imgbb-key';
   process.env.LOG_LEVEL = 'error';
 
   const database = await import('../config/database.js');
@@ -768,6 +769,116 @@ describe('profile', () => {
       body: { email: 'change@example.com', password: 'New-horse-battery-2' },
     });
     assert.equal(fresh.status, 200);
+  });
+});
+
+describe('owner email', () => {
+  it('saves it on the listing and keeps it out of API responses', async () => {
+    const cookie = await signUp('Olive Owner', 'owner-email@example.com');
+    const created = await call('POST', '/api/studios', {
+      cookie,
+      body: studioInput({ title: 'Owner Email Studio' }),
+    });
+    assert.equal(created.status, 201);
+    assert.equal(JSON.stringify(created.body).includes('owner-email@example.com'), false);
+
+    const doc = await db.collection('studios').findOne({ title: 'Owner Email Studio' });
+    assert.equal(doc?.ownerEmail, 'owner-email@example.com');
+  });
+
+  it('accepts imgbb photo links but not other hosts', async () => {
+    const cookie = await signUp('Ian Imgbb', 'imgbb-host@example.com');
+    const imgbb = await call('POST', '/api/studios', {
+      cookie,
+      body: studioInput({
+        title: 'Imgbb Studio',
+        gallery: [{ src: 'https://i.ibb.co/abc/photo.jpg', alt: 'A studio' }],
+      }),
+    });
+    assert.equal(imgbb.status, 201, JSON.stringify(imgbb.body));
+
+    const other = await call('POST', '/api/studios', {
+      cookie,
+      body: studioInput({ gallery: [{ src: 'https://example.com/photo.jpg', alt: 'A studio' }] }),
+    });
+    assert.equal(other.status, 400);
+  });
+});
+
+describe('image uploads', () => {
+  const IMAGE = 'data:image/png;base64,iVBORw0KGgo=';
+
+  /** Answers calls to imgbb with `reply` and lets everything else through. */
+  function stubImgbb(t: TestContext, reply: () => Response): string[] {
+    const uploaded: string[] = [];
+    const realFetch = globalThis.fetch;
+    t.mock.method(globalThis, 'fetch', async (input: string | URL | Request, init?: RequestInit) => {
+      if (String(input).startsWith('https://api.imgbb.com/')) {
+        uploaded.push(String((init?.body as FormData).get('image')));
+        return reply();
+      }
+      return realFetch(input, init);
+    });
+    return uploaded;
+  }
+
+  it('needs a session', async () => {
+    const result = await call('POST', '/api/uploads/image', { body: { image: IMAGE } });
+    assert.equal(result.status, 401);
+  });
+
+  it('sends the image to imgbb and returns its URL', async (t) => {
+    const cookie = await signUp('Uma Upload', 'upload@example.com');
+    const uploaded = stubImgbb(t, () =>
+      Response.json({ data: { url: 'https://i.ibb.co/abc/photo.png' } }),
+    );
+
+    const result = await call('POST', '/api/uploads/image', { cookie, body: { image: IMAGE } });
+    assert.equal(result.status, 201, JSON.stringify(result.body));
+    assert.equal(result.body.url, 'https://i.ibb.co/abc/photo.png');
+    assert.deepEqual(uploaded, ['iVBORw0KGgo=']);
+  });
+
+  it('reports a failed upload without leaking the API key', async (t) => {
+    const cookie = await signUp('Una Upload', 'upload-fail@example.com');
+    stubImgbb(t, () => new Response('nope', { status: 500 }));
+
+    const result = await call('POST', '/api/uploads/image', { cookie, body: { image: IMAGE } });
+    assert.equal(result.status, 502);
+    assert.equal(JSON.stringify(result.body).includes('test-imgbb-key'), false);
+  });
+
+  it('rejects files that are not images, and images over the limit', async () => {
+    const cookie = await signUp('Nia Notimage', 'not-image@example.com');
+    const text = await call('POST', '/api/uploads/image', {
+      cookie,
+      body: { image: 'data:text/html;base64,PGI+' },
+    });
+    assert.equal(text.status, 400);
+
+    const huge = await call('POST', '/api/uploads/image', {
+      cookie,
+      body: { image: `data:image/png;base64,${'A'.repeat(4_300_000)}` },
+    });
+    assert.equal(huge.status, 400);
+  });
+});
+
+describe('newsletter', () => {
+  it('saves a subscriber once, however many times they sign up', async () => {
+    for (const email of ['Fan@Example.com', 'fan@example.com']) {
+      const result = await call('POST', '/api/newsletter', { body: { email } });
+      assert.equal(result.status, 201, JSON.stringify(result.body));
+    }
+    assert.equal(
+      await db.collection('newsletter_subscribers').countDocuments({ email: 'fan@example.com' }),
+      1,
+    );
+  });
+
+  it('rejects an invalid email', async () => {
+    const result = await call('POST', '/api/newsletter', { body: { email: 'not-an-email' } });
+    assert.equal(result.status, 400);
   });
 });
 

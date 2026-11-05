@@ -21,6 +21,7 @@ async function createIndexes(): Promise<void> {
     db.collection(COLLECTIONS.reviews).createIndex({ studioId: 1, authorId: 1 }, { unique: true }),
     db.collection(COLLECTIONS.reviews).createIndex({ studioSlug: 1, createdAt: -1 }),
     db.collection(COLLECTIONS.profiles).createIndex({ userId: 1 }, { unique: true }),
+    db.collection(COLLECTIONS.newsletterSubscribers).createIndex({ email: 1 }, { unique: true }),
   ]);
 }
 

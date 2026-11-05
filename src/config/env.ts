@@ -53,6 +53,7 @@ const env = {
   BETTER_AUTH_URL: readString('BETTER_AUTH_URL', 'http://localhost:5000'),
   GOOGLE_CLIENT_ID: readString('GOOGLE_CLIENT_ID'),
   GOOGLE_CLIENT_SECRET: readString('GOOGLE_CLIENT_SECRET'),
+  IMGBB_API_KEY: readString('IMGBB_API_KEY'),
   LOG_LEVEL: readString('LOG_LEVEL', 'info'),
 } as const;
 

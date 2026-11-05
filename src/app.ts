@@ -28,7 +28,8 @@ app.use(
 // Better Auth reads the raw request body, so it must be mounted before the parsers.
 app.all('/api/auth/{*splat}', rejectForeignOrigins, ensureDatabase, handleAuthRequest);
 
-// Body parsing
+// Body parsing. Uploads carry a base64 image, so they get a higher limit than the rest.
+app.use('/api/uploads', express.json({ limit: '5mb' }));
 app.use(express.json({ limit: '1mb' }));
 app.use(express.urlencoded({ extended: true, limit: '1mb' }));
 
