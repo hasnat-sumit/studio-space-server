@@ -56,13 +56,20 @@ export async function updateProfile(
   user: AuthUser,
   headers: IncomingHttpHeaders,
   input: UpdateProfileInput,
-): Promise<ProfileView> {
+): Promise<{ profile: ProfileView; setCookies: string[] }> {
   const { name, ...fields } = input;
+  let setCookies: string[] = [];
 
   // Identity belongs to Better Auth, so names change through its own API.
   if (name !== undefined && name !== user.name) {
     const auth = await getAuth();
-    await auth.api.updateUser({ headers: await toAuthHeaders(headers), body: { name } });
+    const result = await auth.api.updateUser({
+      headers: await toAuthHeaders(headers),
+      body: { name },
+      returnHeaders: true,
+    });
+    // The session JWT holds the name, so the browser needs the reissued cookie.
+    setCookies = result.headers.getSetCookie();
   }
 
   const profile = await profiles().findOneAndUpdate(
@@ -76,5 +83,5 @@ export async function updateProfile(
 
   await syncHostCard(user.id, { name, tagline: fields.tagline, responseNote: fields.responseNote });
 
-  return toProfileView({ ...user, name: name ?? user.name }, profile);
+  return { profile: toProfileView({ ...user, name: name ?? user.name }, profile), setCookies };
 }

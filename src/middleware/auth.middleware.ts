@@ -6,7 +6,14 @@ import type { AuthUser } from '../types/domain';
 /** Rejects unauthenticated requests with 401 and exposes the user to controllers. */
 export async function requireAuth(req: Request, res: Response, next: NextFunction): Promise<void> {
   const auth = await getAuth();
-  const session = await auth.api.getSession({ headers: await toAuthHeaders(req.headers) });
+  const { headers, response: session } = await auth.api.getSession({
+    headers: await toAuthHeaders(req.headers),
+    returnHeaders: true,
+  });
+
+  // Passes on the refreshed JWT cookie when the previous one has expired.
+  for (const cookie of headers.getSetCookie()) res.append('Set-Cookie', cookie);
+
   if (!session) {
     throw ApiError.unauthorized('Please sign in to continue.');
   }

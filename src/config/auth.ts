@@ -4,6 +4,8 @@ import env from './env';
 import { getDatabase } from './database';
 import { MIN_PASSWORD_LENGTH, passwordProblem } from '../validators/password';
 
+const JWT_COOKIE_MAX_AGE_SECONDS = 60;
+
 /** Better Auth routes that set a password, and the body field that carries it. */
 const PASSWORD_FIELDS: Record<string, string> = {
   '/sign-up/email': 'password',
@@ -35,6 +37,12 @@ async function createAuth(db: Db) {
       minPasswordLength: MIN_PASSWORD_LENGTH,
       // New accounts go to the login page rather than straight into a session.
       autoSignIn: false,
+    },
+    // Keeps the session in a signed JWT, in an HttpOnly cookie alongside the session
+    // token. The server checks the database only once the JWT expires, so a revoked
+    // session can keep working for up to this long.
+    session: {
+      cookieCache: { enabled: true, strategy: 'jwt', maxAge: JWT_COOKIE_MAX_AGE_SECONDS },
     },
     hooks: {
       before: createAuthMiddleware(async (ctx) => {

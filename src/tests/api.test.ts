@@ -65,6 +65,14 @@ async function signUp(name: string, email: string): Promise<string> {
   return signIn.cookie;
 }
 
+/** Just the opaque session cookie, without the JWT that sits beside it. */
+function sessionTokenOnly(cookie: string): string {
+  return cookie
+    .split('; ')
+    .filter((part) => part.includes('session_token='))
+    .join('; ');
+}
+
 function studioInput(overrides: Record<string, unknown> = {}) {
   return {
     title: 'Test Studio',
@@ -150,8 +158,49 @@ describe('authentication', () => {
     const signOut = await call('POST', '/api/auth/sign-out', { cookie, body: {} });
     assert.equal(signOut.status, 200);
 
-    const after = await call('GET', '/api/users/me', { cookie });
-    assert.equal(after.status, 401);
+    // The browser drops both cookies on sign-out. The session token alone is dead too.
+    const signedOut = await call('GET', '/api/users/me');
+    assert.equal(signedOut.status, 401);
+    const replayed = await call('GET', '/api/users/me', { cookie: sessionTokenOnly(cookie) });
+    assert.equal(replayed.status, 401);
+  });
+
+  it('keeps the session JWT in an HttpOnly cookie', async () => {
+    await signUp('Jay Jwt', 'jwt@example.com');
+    const response = await fetch(`${baseUrl}/api/auth/sign-in/email`, {
+      method: 'POST',
+      headers: { origin: CLIENT_ORIGIN, 'content-type': 'application/json' },
+      body: JSON.stringify({ email: 'jwt@example.com', password: 'Correct-horse-1' }),
+    });
+
+    const jwtCookie = response.headers.getSetCookie().find((value) => value.includes('session_data='));
+    assert.ok(jwtCookie, 'sign-in should set the JWT cookie');
+    assert.match(jwtCookie, /HttpOnly/i);
+
+    const token = jwtCookie.split(';')[0]!.split('=')[1]!;
+    const parts = token.split('.');
+    assert.equal(parts.length, 3, 'the cookie value should be a JWT');
+    const header = JSON.parse(Buffer.from(parts[0]!, 'base64url').toString());
+    assert.equal(header.alg, 'HS256');
+  });
+
+  it('rejects a forged JWT cookie', async () => {
+    const cookie = await signUp('Fay Forge', 'forge@example.com');
+    const name = cookie.split('; ').find((part) => part.includes('session_data='))!.split('=')[0]!;
+    const header = Buffer.from(JSON.stringify({ alg: 'HS256' })).toString('base64url');
+    const payload = Buffer.from(JSON.stringify({ user: { id: 'attacker' } })).toString('base64url');
+
+    const forged = await call('GET', '/api/users/me', { cookie: `${name}=${header}.${payload}.bad` });
+    assert.equal(forged.status, 401);
+  });
+
+  it('answers protected writes without a session with 401', async () => {
+    const created = await call('POST', '/api/studios', { body: studioInput() });
+    assert.equal(created.status, 401);
+    const removed = await call('DELETE', `/api/studios/${new ObjectId().toHexString()}`);
+    assert.equal(removed.status, 401);
+    const booked = await call('POST', '/api/bookings', { body: {} });
+    assert.equal(booked.status, 401);
   });
 
   it('enforces the password rules on sign-up and change', async () => {
@@ -670,7 +719,11 @@ describe('profile', () => {
     assert.equal(updated.status, 200, JSON.stringify(updated.body));
     assert.equal(updated.body.name, 'Paige Renamed');
 
-    const session = await call('GET', '/api/auth/get-session', { cookie });
+    // The update reissues the session JWT, so the new name shows straight away.
+    assert.ok(updated.cookie?.includes('session_data='));
+    const session = await call('GET', '/api/auth/get-session', {
+      cookie: `${sessionTokenOnly(cookie)}; ${updated.cookie}`,
+    });
     assert.equal(session.body.user.name, 'Paige Renamed');
 
     const publicStudio = await call('GET', `/api/studios/${studio.body.id}`);

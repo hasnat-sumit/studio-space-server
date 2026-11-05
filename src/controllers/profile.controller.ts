@@ -13,7 +13,9 @@ export async function getMe(_req: Request, res: Response): Promise<void> {
 /** PATCH /api/users/me */
 export async function patchMe(req: Request, res: Response): Promise<void> {
   const input = parseInput(updateProfileSchema, req.body);
-  res.json(await updateProfile(currentUser(res), req.headers, input));
+  const { profile, setCookies } = await updateProfile(currentUser(res), req.headers, input);
+  for (const cookie of setCookies) res.append('Set-Cookie', cookie);
+  res.json(profile);
 }
 
 /** GET /api/dashboard/summary */
