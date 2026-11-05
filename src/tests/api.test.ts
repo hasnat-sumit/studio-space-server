@@ -772,6 +772,20 @@ describe('profile', () => {
   });
 });
 
+describe('allowed origins', () => {
+  it('accepts other localhost ports in development only', async () => {
+    const { isAllowedOrigin, trustedOrigins } = await import('../config/origins.js');
+
+    assert.equal(isAllowedOrigin(CLIENT_ORIGIN, 'production'), true);
+    assert.equal(isAllowedOrigin('http://localhost:3001', 'development'), true);
+    assert.equal(isAllowedOrigin('http://localhost:3001', 'production'), false);
+    assert.equal(isAllowedOrigin('http://localhost:3001', 'test'), false);
+    assert.equal(isAllowedOrigin('https://evil.example', 'development'), false);
+    assert.equal(isAllowedOrigin('http://localhost.evil.example:3001', 'development'), false);
+    assert.deepEqual(trustedOrigins('production'), [CLIENT_ORIGIN]);
+  });
+});
+
 describe('owner email', () => {
   it('saves it on the listing and keeps it out of API responses', async () => {
     const cookie = await signUp('Olive Owner', 'owner-email@example.com');

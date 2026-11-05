@@ -1,5 +1,5 @@
 import type { NextFunction, Request, Response } from 'express';
-import env from '../config/env';
+import { isAllowedOrigin } from '../config/origins';
 import { ApiError } from '../utils/api-error';
 
 const SAFE_METHODS = new Set(['GET', 'HEAD', 'OPTIONS']);
@@ -12,7 +12,7 @@ const SAFE_METHODS = new Set(['GET', 'HEAD', 'OPTIONS']);
  */
 export function rejectForeignOrigins(req: Request, _res: Response, next: NextFunction): void {
   const origin = req.get('origin');
-  if (!SAFE_METHODS.has(req.method) && origin && origin !== env.CLIENT_URL) {
+  if (!SAFE_METHODS.has(req.method) && origin && !isAllowedOrigin(origin)) {
     throw ApiError.forbidden('Cross-site requests are not allowed.');
   }
   next();

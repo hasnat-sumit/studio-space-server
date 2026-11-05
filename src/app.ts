@@ -1,7 +1,7 @@
 import cors from 'cors';
 import express from 'express';
 import { handleAuthRequest } from './config/auth';
-import env from './config/env';
+import { isAllowedOrigin } from './config/origins';
 import apiRouter from './routes';
 import { ensureDatabase } from './middleware/database.middleware';
 import { errorHandler, notFoundHandler } from './middleware/error.middleware';
@@ -15,10 +15,10 @@ const app = express();
 
 app.disable('x-powered-by');
 
-// CORS: only the configured client origin may call this API.
+// CORS: only the allowed client origin may call this API.
 app.use(
   cors({
-    origin: env.CLIENT_URL,
+    origin: (origin, callback) => callback(null, !origin || isAllowedOrigin(origin)),
     credentials: true,
     methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
     allowedHeaders: ['Content-Type', 'Authorization'],

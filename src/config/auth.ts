@@ -2,6 +2,7 @@ import type { IncomingHttpHeaders, IncomingMessage, ServerResponse } from 'node:
 import type { Db } from 'mongodb';
 import env from './env';
 import { getDatabase } from './database';
+import { trustedOrigins } from './origins';
 import { MIN_PASSWORD_LENGTH, passwordProblem } from '../validators/password';
 
 const JWT_COOKIE_MAX_AGE_SECONDS = 60;
@@ -30,7 +31,7 @@ async function createAuth(db: Db) {
     baseURL: env.BETTER_AUTH_URL,
     basePath: '/api/auth',
     secret: env.BETTER_AUTH_SECRET,
-    trustedOrigins: [env.CLIENT_URL],
+    trustedOrigins: trustedOrigins(),
     database: mongodbAdapter(db),
     emailAndPassword: {
       enabled: true,
