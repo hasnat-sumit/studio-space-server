@@ -6,7 +6,8 @@ The frontend lives in a separate repo: [studio-space](https://github.com/hasnat-
 
 ## Features
 
-- **Authentication:** email and password, plus optional Google sign-in, using Better Auth with `HttpOnly` session cookies.
+- **Authentication:** email and password, plus optional Google sign-in, using Better Auth. The session is kept in a signed JWT in an `HttpOnly` cookie, and protected routes answer `401` without a valid session.
+- **Image uploads:** signed-in hosts can upload listing photos, which are stored on imgbb.
 - **Ownership-based access:** there are no roles. Every account can both book and host, and users can only change their own data.
 - **No double-booking:** a unique database index on 30-minute slots makes overlapping requests fail atomically.
 - **Server-side pricing:** totals are computed from the listing, never read from the request.
@@ -36,7 +37,7 @@ cp .env.example .env
 Fill in `.env`, using the table below, and then start the server:
 
 ```bash
-npm run seed   # optional: adds demo studios and reviews
+npm run seed   # optional: adds demo studios, reviews, and the examiner account
 npm run dev
 ```
 
@@ -61,6 +62,7 @@ node -e "console.log(require('crypto').randomBytes(32).toString('hex'))"
 | `BETTER_AUTH_URL` | No | `http://localhost:5000` | Public URL browsers use to reach `/api/auth`, with no path |
 | `GOOGLE_CLIENT_ID` | No | None | Turns on Google sign-in, together with the secret |
 | `GOOGLE_CLIENT_SECRET` | No | None | Turns on Google sign-in, together with the ID |
+| `IMGBB_API_KEY` | No | None | Turns on image uploads. Without it, hosts can still paste image URLs |
 | `LOG_LEVEL` | No | `info` | `debug`, `info`, `warn`, or `error` |
 
 In production, the server refuses to start if a required variable is missing. In development, it logs a warning instead, but sign-in and data routes still need both values to work.

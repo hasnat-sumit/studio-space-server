@@ -12,6 +12,9 @@ Express 5 + TypeScript (CommonJS) + MongoDB native driver + Better Auth. Keep ne
 - **Prices** are computed from the listing in `booking.service.ts`, never read from the request.
 - **Better Auth** owns the `user`, `session`, `account`, and `verification` collections. Change users through its API; extra profile fields live in `profiles`.
 - **Better Auth is ESM-only**: load it only through `import()` in `src/config/auth.ts`. A static import elsewhere works locally but crashes on Vercel with `ERR_REQUIRE_ESM`. To reproduce it, build and run `node --no-require-module dist/server.js`.
+- **Session JWT**: the session is cached in a signed JWT cookie for 60 seconds, so a revoked session can work for up to that long, and `session.user` can be that stale. When a route changes what the JWT holds, forward Better Auth's `Set-Cookie` headers to the browser, as `updateProfile` does.
+- **Sign-up**: `autoSignIn` is off, which makes Better Auth answer duplicate emails with a fake success. The `before` hook in `src/config/auth.ts` rejects them instead, and also enforces the password rules in `src/validators/password.ts`.
+- **Listing photos**: the hosts in `studio.validators.ts` must match `images.remotePatterns` in the client's `next.config.ts`.
 - **Responses**: success bodies are the bare resource (the client expects this); errors use the central shape.
 
 ## Commands
